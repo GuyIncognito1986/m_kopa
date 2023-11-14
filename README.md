@@ -19,4 +19,5 @@
 - If a message is a multi-sms message, they will come through as different messages from the hub with different correlation ids. Aka we do not handle message splitting inside the sms worker. (This is a little lazy on our part as sms delivery is mission critical according to the spec, HOWEVER it does force separation of responsibilities on the service layer etc and delegates it an sms compositor service where it should be.)
 - If any of the above validations are broken, we push the message to a dead letter queue and log an error. 
 - There is schema validation on the message queue so that we don't need to handle/have a dead letter queue on incoming messages.
+- Assuming localization for errors/messages in the logs etc is fine as strings in code so I don't have to muck about with resx files etc, as it's for internal non customer facing logging.
 

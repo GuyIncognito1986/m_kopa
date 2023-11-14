@@ -1,10 +1,15 @@
-﻿using PhoneNumbers;
+﻿using MKopa.SMS.Worker.Lib.Exceptions;
+using PhoneNumbers;
 using Visus.Cuid;
 
 namespace MKopa.SMS.Worker.Lib.DomainModel
 {
     public class SendSmsCommand
     {
+        public const string TextDefaultError = "SMS text can not be null!";
+        public const string PhoneNumberDefaultError = "Phone number can not be null!";
+        public const string CorrelationIdNotSetError = "Correlation id must be set!";
+        public const string SMSTextTooLongError = "SMS text too long!";
         public Cuid2 CorrelationId { get; }
         public PhoneNumber PhoneNumber { get; }
         public string Text { get; }
@@ -18,10 +23,12 @@ namespace MKopa.SMS.Worker.Lib.DomainModel
 
         public void Validate()
         {
-            if (Text == null) throw new ArgumentNullException("SMS text can not be null!");
-            if (PhoneNumber == null) throw new ArgumentNullException("Phone number can not be null!");
-            if (CorrelationId == default) throw new ArgumentException("Correlation id must be set!");
-            if (Text.Length > 160) throw new ArgumentException("SMS text too long!");
+            var listOfValidationErrors = new List<string>();
+            if (Text == default) listOfValidationErrors.Add(TextDefaultError);
+            if (PhoneNumber == default) listOfValidationErrors.Add(PhoneNumberDefaultError);
+            if (CorrelationId == default) listOfValidationErrors.Add(CorrelationIdNotSetError);
+            if (Text?.Length > 160) listOfValidationErrors.Add(SMSTextTooLongError);
+            if (listOfValidationErrors.Any()) throw new SendSmsCommandValidationException(listOfValidationErrors);
         }
     }
 }
