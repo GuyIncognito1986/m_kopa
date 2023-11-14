@@ -28,7 +28,7 @@ communication with customers is via SMS (i.e., “text message”), which are re
 
 The goal of this exercise is to build a simple microservice as a wrapper around the API for a 3rd. party SMS service. Assume that the 3rd. party SMS service receives some type of HTTP request inorder to send an SMS message to a customer’s phone number (implementations vary, but most providers use JSON POST requests with the target phone number and SMS message text in the body). Your microservice will abstract this HTTP interaction behind an async flow.
 
-When a client wants to send an SMS to this 3rd. party service, the client will send a SendSms command into a message queue.1 Your microservice will then receive that command, make anHTTP request to the 3rd party client and, assuming that HTTP request is successful, publish an “SmsSent” event to a global event bus. The overall logical architecture therefore looks something like this:
+When a client wants to send an SMS to this 3rd. party service, the client will send a SendSms command into a message queue.1 Your microservice will then receive that command, make an HTTP request to the 3rd party client and, assuming that HTTP request is successful, publish an “SmsSent” event to a global event bus. The overall logical architecture therefore looks something like this:
 
 ![Untitled](problem_image.png)
 
