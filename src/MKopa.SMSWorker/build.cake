@@ -1,15 +1,16 @@
 var target = Argument("target", "Test");
 var configuration = Argument("configuration", "Release");
 var baseDir = string.Empty;
-var solutionFilePath = System.IO.Path.Join(baseDir, "MKopa.PaymentWorker.sln");
+var solutionFilePath = System.IO.Path.Join(baseDir, "MKopa.SMSWorker.sln");
 
 var projectNames = new [] {
-    "MKopa.SMS.PaymentWorker",
-    "MKopa.SMS.PaymentWorker.Lib"
+    "MKopa.SMS.Worker",
+    "MKopa.SMS.Worker.Lib"
 };
 
 var testProjectNames = new [] {
-        "MKopa.SMS.PaymentWorker"
+        "MKopa.SMS.Worker.UnitTests",
+        "MKopa.SMS.Worker.AcceptanceTests"
 };
 
 private IEnumerable<string> BuildProjectPaths(IEnumerable<string> projNames)

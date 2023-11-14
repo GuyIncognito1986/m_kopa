@@ -1,2 +1,12 @@
-# m_kopa
-M-Kopa Technical Test
+# M-Kopa Technical Test
+
+### Assumptions/Choices/Justifications:
+
+- Taking away from our chat with Juan and Henry the message queue for the input is an event hub, therefore subscription to topic/event hub means IAsyncEnumerable coming from the client, the exercise says components not chosen but for the contract I'm going to use IAsyncEnumerable being returned from subscribe method.
+- Phone number has 1 to 1 mapping with an account. (In real life it's very possible you guys have many to many, don't know, keeping it simple here).
+- Containerisation/k8s etc out of scope, running as a process (not windows service etc) in scope. (In real life this would probably run in k8s etc and on a linux container therefore 1 process per container etc.
+- Since this is a microservice it needs to run with horizontal scaling for processing sms sending so the state is held else where, for instance in a state management service or redis cache running in persistant AOF mode.
+- Adding some sort of a correlation id to the instruction. Going to use a CUID2 because it's the future or something (more performant lighter, etc), in real life this would probably mean everywhere else would have to support cuid2s, so in a large microservice environment we'd probably go with guids until everyone could make that jump, but this is just an exercise so going with "ideal" solution. This is so we can easily correlate the state with the sms event when replaying the queue on service startup.
+- Service should start and run in "test" mode so that we have something actually sort of working at the end of the exercise, can't do it in "real" mode because as the exercise dictates the components have not been chosen yet.
+- Writing in .net 7, I think this is better then LTS releases as it forces small incremental improvements/upgrades to .net versions during development/support of development lifecycle, vs jumpting LTS versions where more tech debt would need to be addressed in a "big bang" fashion.
+- Acceptance tests in fluent asserions over specflow. I get the need for BDD style tests etc, but specflow is just a horrible implementation usiong code gen etc, quite often buggy and massively lagging behind actual .net versions etc. Also historically used to make visual studio crawl.
