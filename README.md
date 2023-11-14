@@ -9,7 +9,6 @@
 ### Assumptions/Choices/Justifications:
 
 - Taking away from our chat with Juan and Henry the message queue for the input is an event hub, therefore subscription to topic/event hub means IAsyncEnumerable coming from the client, the exercise says components not chosen but for the contract I'm going to use IAsyncEnumerable being returned from subscribe method.
-- Phone number has 1 to 1 mapping with an account. (In real life it's very possible you guys have many to many, don't know, keeping it simple here).
 - Containerization/k8s etc out of scope, running as a process (not windows service etc) in scope. (In real life this would probably run in k8s etc and on a linux container therefore 1 process per container etc.
 - Since this is a microservice it needs to run with horizontal scaling for processing sms sending so the state is held else where, for instance in a state management service or redis cache running in persistent AOF mode.
 - Adding some sort of a correlation id to the instruction. Going to use a CUID2 because it's the future or something (more performant lighter, etc), in real life this would probably mean everywhere else would have to support cuid2s, so in a large microservice environment we'd probably go with GUIDs until everyone could make that jump, but this is just an exercise so going with "ideal" solution. This is so we can easily correlate the state with the sms event when replaying the queue on service startup. There is also nanoId, but it seems less popular and less mature etc.

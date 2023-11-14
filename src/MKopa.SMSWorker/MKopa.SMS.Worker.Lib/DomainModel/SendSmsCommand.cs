@@ -5,9 +5,9 @@ namespace MKopa.SMS.Worker.Lib.DomainModel
 {
     public class SendSmsCommand
     {
-        Cuid2 CorrelationId { get; }
-        PhoneNumber PhoneNumber { get; }
-        string Text { get; }
+        public Cuid2 CorrelationId { get; }
+        public PhoneNumber PhoneNumber { get; }
+        public string Text { get; }
 
         public SendSmsCommand(Cuid2 correlationId, PhoneNumber phoneNumber, string text)
         { 
