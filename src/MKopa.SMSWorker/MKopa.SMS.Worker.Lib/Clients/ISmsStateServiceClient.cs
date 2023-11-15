@@ -6,6 +6,5 @@ namespace MKopa.SMS.Worker.Lib.Clients;
 
 public interface ISmsStateServiceClient
 {
-    public Task<Cuid2> GetState(SMSStateMachine.States state);
-    public Task<ConcurrentDictionary<Cuid2, SMSStateMachine.States>> GetAllStates();
+    public Task<SMSStateMachine.States> GetStateAsync(Cuid2 correlationId);
 }

@@ -4,4 +4,5 @@ public interface IServiceBusClient
 {
     public void PublishToDeadLetterAsync(byte[] payload);
     public void PublishToMessageSendCompletedAsync(byte[] payload);
+    public byte[] Serialize<T>(T message);
 }
