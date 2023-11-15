@@ -1,13 +1,10 @@
-﻿using System.Net;
-
-namespace MKopa.SMS.Worker;
+﻿namespace MKopa.SMS.Worker;
 
 public class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        Console.WriteLine("Hello, world!");
-        return 0;
+        throw new NotImplementedException("Executable has not been implemented yet!");
     }
 }
 

@@ -9,6 +9,7 @@
   <ItemGroup>
     <PackageReference Include="cuid.net" Version="4.1.0" />
     <PackageReference Include="libphonenumber-csharp" Version="8.13.24" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

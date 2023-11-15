@@ -30,5 +30,10 @@ namespace MKopa.SMS.Worker.Lib.DomainModel
             if (Text?.Length > 160) listOfValidationErrors.Add(SMSTextTooLongError);
             if (listOfValidationErrors.Any()) throw new SendSmsCommandValidationException(listOfValidationErrors);
         }
+
+        public ThirdPartySmsMessage ToThirdPartySmsMessage()
+        {
+            return new ThirdPartySmsMessage(PhoneNumber.ToString(), Text);
+        }
     }
 }
