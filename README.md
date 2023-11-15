@@ -25,3 +25,32 @@
 - There is schema validation on the message queue so that we don't need to handle/have a dead letter queue on incoming messages.
 - Assuming localization for errors/messages in the logs etc is fine as strings in code so I don't have to muck about with resx files etc, as it's for internal non customer facing logging.
 - Assuming any third party packages should be under MIT/BSD similar free to use for commercial purposes license.
+
+### What I'd do better if time wasn't an issue
+
+- More tests
+- Clean up some of the test code for the sms state machine
+- More validations in the tests for the state machine
+- Tests around the state of the sms sender state machine running/not running etc
+
+### Prerequisites:
+
+#### All Systems:
+
+* [.NET 7 sdk](https://dotnet.microsoft.com/en-us/download/dotnet/7.0)
+* [Cake](https://cakebuild.net/docs/running-builds/runners/dotnet-tool)
+
+#### Windows:
+* Powershell 5.1+
+
+#### Linux/MacOs:
+* Only tested on Linux
+* Powershell 6.0+
+
+#### How to run/build and test
+
+From extracted root:
+
+```powershell
+./buildAndTest.ps1
+```
