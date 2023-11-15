@@ -2,7 +2,6 @@ namespace MKopa.SMS.Worker.Lib.DomainModel;
 
 public enum ResponseType
 {
-    CanRetry = 0,
-    Fatal = 1,
-    Success = 2
+    Fatal = 0,
+    Success = 1
 }

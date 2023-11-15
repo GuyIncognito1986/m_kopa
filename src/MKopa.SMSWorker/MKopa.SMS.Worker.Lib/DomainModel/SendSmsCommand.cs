@@ -33,7 +33,7 @@ namespace MKopa.SMS.Worker.Lib.DomainModel
 
         public ThirdPartySmsMessage ToThirdPartySmsMessage()
         {
-            return new ThirdPartySmsMessage(PhoneNumber.ToString(), Text);
+            return new ThirdPartySmsMessage(PhoneNumber, Text);
         }
     }
 }

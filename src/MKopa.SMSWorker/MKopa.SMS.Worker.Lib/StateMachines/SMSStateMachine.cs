@@ -5,16 +5,18 @@ using Clients;
 using Exceptions;
 using DomainModel;
 using Visus.Cuid;
+using System.Reflection.Metadata.Ecma335;
 
 public class SMSStateMachine
 {
     public enum States
     {
         Initial = 0,
-        MessageSendSuccessful = 1,
-        MessageDeadLettered = 2,
-        MessageDeserialized = 3,
-        MessageValidated = 4
+        Running = 1,
+        MessageSendSuccessful = 2,
+        MessageDeadLettered = 3,
+        MessageDeserialized = 4,
+        MessageValidated = 5
     }
 
     private States _currentState = States.Initial;
@@ -24,7 +26,10 @@ public class SMSStateMachine
     private readonly IThirdPartyClient _thirdPartyClient;
     private readonly ILogger<SMSStateMachine> _logger;
     private readonly byte[] _message;
-    
+    private SendSmsCommand? _deserializedCommandMessage { get; set; }
+    private SemaphoreSlim _stateSemaphore = new SemaphoreSlim(1);
+    private SemaphoreSlim _deserializedMessageSemaphore = new SemaphoreSlim(1);
+
     public SMSStateMachine(IQueueClient queueClient, 
         IServiceBusClient serviceBusClient, 
         ISmsStateServiceClient stateServiceClient, 
@@ -39,66 +44,140 @@ public class SMSStateMachine
         _logger = logger;
         _message = message;
     }
-    
+
+    public async Task<bool> IsRunning()
+    {
+        var state = await SafelyGetState();
+        if (state == States.MessageDeadLettered || state == States.Initial || state == States.MessageSendSuccessful) return false;
+        return true;
+    }
+
+    public async Task<bool> HasFinished()
+    {
+        var state = await SafelyGetState();
+        if (state == States.MessageDeadLettered || state == States.MessageSendSuccessful) return true;
+        return false;
+    }
+
     public async Task RunStateMachine()
     {
-        _logger.LogInformation($"Starting sms state machine processing in state: {_currentState.ToString()}");
-        SendSmsCommand? sendSmsCommand = null;
-        while (_currentState != States.MessageDeadLettered && _currentState != States.MessageSendSuccessful)
+        if(await IsRunning())
         {
-            sendSmsCommand = await ProcessState(sendSmsCommand);
+            _logger.LogWarning("State machine already running");
+            return;
+        }
+        _logger.LogInformation($"Starting sms state machine, current state: {await SafelyGetState()}");
+        await SafelyUpdateState(States.Running);
+        while (await HasFinished())
+        {
+            await ProcessState();
         }
     }
 
-    private async Task<SendSmsCommand?> ProcessState(SendSmsCommand? msg)
+    private async Task SafelyUpdateState(States state)
+    {
+        try
+        {
+            await _stateSemaphore.WaitAsync();
+            _currentState = state;
+        }
+        finally
+        {
+            _stateSemaphore.Release();
+        }
+    }
+
+    private async Task<States> SafelyGetState()
+    {
+        try
+        {
+            await _stateSemaphore.WaitAsync();
+            return _currentState;
+        }
+        finally
+        {
+            _stateSemaphore.Release();
+        }
+    }
+
+    private async Task SafelyUpdateDesrializedMessage(SendSmsCommand sendSmsCommand)
+    {
+        try
+        {
+            await _deserializedMessageSemaphore.WaitAsync();
+            _deserializedCommandMessage = sendSmsCommand;
+        }
+        finally
+        {
+            _deserializedMessageSemaphore.Release();
+        }
+    }
+
+    private async Task<SendSmsCommand> SafelyGetDeserializedMessage()
+    {
+        try
+        {
+            await _deserializedMessageSemaphore.WaitAsync();
+            if (_deserializedCommandMessage != null)
+                return _deserializedCommandMessage;
+            else
+                throw new DeserializedMessageCanNotBeNullException();
+        }
+        finally
+        {
+            _deserializedMessageSemaphore.Release();
+        }
+    }
+
+    private async Task ToDeadLetterAsync(byte[] message, Cuid2? cuid)
+    {
+        await _serviceBusClient.PublishToDeadLetterAsync(message);
+        await SafelyUpdateState(States.MessageDeadLettered);
+        if(cuid != null)
+            await _stateServiceClient.SetStateAsync(cuid.Value, States.MessageDeadLettered);
+        else
+            await _stateServiceClient.SetStateAsync(new Cuid2(), States.MessageDeadLettered);
+    }
+
+    private async Task ProcessState()
     {
         switch (_currentState)
         {
-            case States.Initial:
+            case States.Running:
                 try
                 {
-                    var message = _queueClient.Deserialize(_message);
-                    _logger.LogInformation($"Deserialized message with correlation id: {message.CorrelationId}");
-                    _logger.LogTrace($"With number: {message.PhoneNumber}\nAnd body: {message.Text}");
-                    _currentState = States.MessageDeserialized;
-                    return message;
+                    var dMsg = _queueClient.Deserialize(_message);
+                    await SafelyUpdateDesrializedMessage(dMsg);
+                    await SafelyUpdateState(States.MessageDeserialized);
+                    _logger.LogInformation($"Deserialized message with correlation id: {dMsg.CorrelationId}");
+                    _logger.LogTrace($"With number: {dMsg.PhoneNumber}\nAnd body: {dMsg.Text}");
                 }
                 catch (QueueDeserializationFailedException)
                 {
                     _logger.LogError("Failed to deserialize sms command from the queue! Pushing to dead letter!");
                     var failedDeserializationMessage = new FailedDeserializationDeadLetterMessage(_message);
-                    var deadLetterMessage = _serviceBusClient.Serialize(failedDeserializationMessage); 
-                    await _serviceBusClient.PublishToDeadLetterAsync(deadLetterMessage);
-                    _currentState = States.MessageDeadLettered;
-                    await _stateServiceClient.SetStateAsync(new Cuid2(), States.MessageDeadLettered);
-                    return null;
+                    var deadLetterMessage = _serviceBusClient.Serialize(failedDeserializationMessage);
+                    await ToDeadLetterAsync(deadLetterMessage, null);
                 }
+                break;
             case States.MessageDeserialized:
+                var message = await SafelyGetDeserializedMessage();
                 try
                 {
-                    msg?.Validate();
-                    _currentState = States.MessageValidated;
+                    message.Validate();
+                    await SafelyUpdateState(States.MessageValidated);
+                    _logger.LogInformation($"Validated message with correlation id: {message.CorrelationId}");
                 }
                 catch (SendSmsCommandValidationException e)
                 {
-                    var validationFailedMessage = new FailedCommandDeadLetterMessage(msg, e.Message);
+                    var validationFailedMessage = new FailedCommandDeadLetterMessage(message, e.Message);
                     var deadLetterMessage = _serviceBusClient.Serialize(validationFailedMessage);
-                    await _serviceBusClient.PublishToDeadLetterAsync(deadLetterMessage);
-                    _currentState = States.MessageDeadLettered;
-                    await _stateServiceClient.SetStateAsync(msg.CorrelationId, States.MessageDeadLettered);
+                    await ToDeadLetterAsync(deadLetterMessage, message.CorrelationId);
                 }
-                return msg;
+                break;
             case States.MessageValidated:
+                var msg = await SafelyGetDeserializedMessage();
                 var resp = await _thirdPartyClient.PostMessageSentEventToThirdPartyApiAsync(msg.ToThirdPartySmsMessage());
-                if (resp == ResponseType.CanRetry)
-                {
-                    for (int i = 0; i < 5; ++i)
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(1));
-                        resp = await _thirdPartyClient.PostMessageSentEventToThirdPartyApiAsync(msg.ToThirdPartySmsMessage());
-                        if (resp == ResponseType.Success || resp == ResponseType.Fatal) break;
-                    }    
-                }
                 if (resp == ResponseType.Success)
                 {
                     _currentState = States.MessageSendSuccessful;
@@ -106,18 +185,19 @@ public class SMSStateMachine
                     var sMessageSent = _serviceBusClient.Serialize(messageSent);
                     await _serviceBusClient.PublishToMessageSendCompletedAsync(sMessageSent);
                     await _stateServiceClient.SetStateAsync(msg.CorrelationId, States.MessageSendSuccessful);
+                    _logger.LogInformation($"Sent message with correlation id: {msg.CorrelationId}");
                 }
                 else
                 {
                     var validationFailedMessage = new FailedCommandDeadLetterMessage(msg, "Fatal error when using 3rd party api!");
                     var deadLetterMessage = _serviceBusClient.Serialize(validationFailedMessage);
-                    await _serviceBusClient.PublishToDeadLetterAsync(deadLetterMessage);
-                    _currentState = States.MessageDeadLettered;
-                    await _stateServiceClient.SetStateAsync(msg.CorrelationId, States.MessageDeadLettered);
+                    await ToDeadLetterAsync(deadLetterMessage, msg.CorrelationId);
                 }
-                return msg;
+                break;
             default:
-                throw new Exception("Unknown state");
+                var state = await SafelyGetState();
+                _logger.LogWarning($"State machine is in finite or has not started yet, current state: {state}");
+                break;
         }
     }
 }
