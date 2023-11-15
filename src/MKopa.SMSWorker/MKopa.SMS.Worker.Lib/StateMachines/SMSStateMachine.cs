@@ -24,7 +24,7 @@ public class SMSStateMachine
     private readonly IServiceBusClient _serviceBusClient;
     private readonly ISmsStateServiceClient _stateServiceClient;
     private readonly IThirdPartyClient _thirdPartyClient;
-    private readonly ILogger<SMSStateMachine> _logger;
+    private readonly ILogger _logger;
     private readonly byte[] _message;
     private SendSmsCommand? _deserializedCommandMessage { get; set; }
     private SemaphoreSlim _stateSemaphore = new SemaphoreSlim(1);
@@ -34,7 +34,7 @@ public class SMSStateMachine
         IServiceBusClient serviceBusClient, 
         ISmsStateServiceClient stateServiceClient, 
         IThirdPartyClient thirdPartyClient,
-        ILogger<SMSStateMachine> logger,
+        ILogger logger,
         byte[] message)
     {
         _queueClient = queueClient;
@@ -68,7 +68,7 @@ public class SMSStateMachine
         }
         await SafelyUpdateState(States.Running);
         _logger.LogInformation($"Starting sms state machine, current state: {await SafelyGetState()}");
-        while (await HasFinished())
+        while (await IsRunning())
         {
             await ProcessState();
         }
