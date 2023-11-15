@@ -24,3 +24,4 @@
 - If any of the above validations are broken, we push the message to a dead letter queue and log an error. 
 - There is schema validation on the message queue so that we don't need to handle/have a dead letter queue on incoming messages.
 - Assuming localization for errors/messages in the logs etc is fine as strings in code so I don't have to muck about with resx files etc, as it's for internal non customer facing logging.
+- Assuming any third party packages should be under MIT/BSD similar free to use for commercial purposes license.
