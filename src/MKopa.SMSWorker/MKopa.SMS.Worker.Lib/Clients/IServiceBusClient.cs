@@ -2,7 +2,7 @@ namespace MKopa.SMS.Worker.Lib.Clients;
 
 public interface IServiceBusClient
 {
-    public void PublishToDeadLetterAsync(byte[] payload);
-    public void PublishToMessageSendCompletedAsync(byte[] payload);
+    public Task PublishToDeadLetterAsync(byte[] payload);
+    public Task PublishToMessageSendCompletedAsync(byte[] payload);
     public byte[] Serialize<T>(T message);
 }

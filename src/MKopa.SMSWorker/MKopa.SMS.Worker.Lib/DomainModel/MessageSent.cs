@@ -1,16 +1,13 @@
 namespace MKopa.SMS.Worker.Lib.DomainModel;
 
-using StateMachines;
 using Visus.Cuid;
 
-public class SMSMessageState
+public class MessageSent
 {
     public Cuid2 CorrelationId { get; }
-    public SMSStateMachine.States State { get; }
 
-    public SMSMessageState(Cuid2 correlationId, SMSStateMachine.States state)
+    public MessageSent(Cuid2 correlationId)
     {
         CorrelationId = correlationId;
-        State = state;
     }
 }
