@@ -66,8 +66,8 @@ public class SMSStateMachine
             _logger.LogWarning("State machine already running");
             return;
         }
-        _logger.LogInformation($"Starting sms state machine, current state: {await SafelyGetState()}");
         await SafelyUpdateState(States.Running);
+        _logger.LogInformation($"Starting sms state machine, current state: {await SafelyGetState()}");
         while (await HasFinished())
         {
             await ProcessState();
@@ -133,10 +133,17 @@ public class SMSStateMachine
     {
         await _serviceBusClient.PublishToDeadLetterAsync(message);
         await SafelyUpdateState(States.MessageDeadLettered);
-        if(cuid != null)
+        var id = cuid == null ? new Cuid2() : cuid.Value;
+        _logger.LogError($"Sending to dead letter with message id {id}");
+        if (cuid != null)
+        {
             await _stateServiceClient.SetStateAsync(cuid.Value, States.MessageDeadLettered);
+        }
         else
+        {
             await _stateServiceClient.SetStateAsync(new Cuid2(), States.MessageDeadLettered);
+        }
+        
     }
 
     private async Task ProcessState()
