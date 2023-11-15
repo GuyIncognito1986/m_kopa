@@ -49,7 +49,7 @@
 
 #### How to run/build and test
 
-From extracted root:
+From extracted root in powershell:
 
 ```powershell
 ./buildAndTest.ps1
