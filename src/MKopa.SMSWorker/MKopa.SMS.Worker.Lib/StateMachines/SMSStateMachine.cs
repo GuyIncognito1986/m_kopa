@@ -7,7 +7,7 @@ using DomainModel;
 using Visus.Cuid;
 using System.Reflection.Metadata.Ecma335;
 
-public class SMSStateMachine
+public class SMSStateMachine: IDisposable
 {
     public enum States
     {
@@ -156,6 +156,15 @@ public class SMSStateMachine
                     var dMsg = _queueClient.Deserialize(_message);
                     await SafelyUpdateDesrializedMessage(dMsg);
                     await SafelyUpdateState(States.MessageDeserialized);
+                    var stateExistsInStateService = await _stateServiceClient.GetStateAsync(dMsg.CorrelationId);
+                    if (stateExistsInStateService != null && 
+                        (stateExistsInStateService == States.MessageDeadLettered ||
+                        stateExistsInStateService == States.MessageSendSuccessful))
+                    {
+                        _logger.LogInformation($"Message with correlation id {dMsg.CorrelationId} has already been processed");
+                        await SafelyUpdateState(stateExistsInStateService.Value);
+                        return;
+                    }
                     _logger.LogInformation($"Deserialized message with correlation id: {dMsg.CorrelationId}");
                     _logger.LogTrace($"With number: {dMsg.PhoneNumber}\nAnd body: {dMsg.Text}");
                 }
@@ -206,5 +215,11 @@ public class SMSStateMachine
                 _logger.LogWarning($"State machine is in finite or has not started yet, current state: {state}");
                 break;
         }
+    }
+    
+    public void Dispose()
+    {
+        _stateSemaphore.Dispose();
+        _deserializedMessageSemaphore.Dispose();
     }
 }

@@ -5,6 +5,6 @@ using Visus.Cuid;
 
 public interface ISmsStateServiceClient
 {
-    public Task<SMSStateMachine.States> GetStateAsync(Cuid2 correlationId);
+    public Task<SMSStateMachine.States?> GetStateAsync(Cuid2 correlationId);
     public Task SetStateAsync(Cuid2 correlationId, SMSStateMachine.States state);
 }

@@ -42,6 +42,22 @@ public class SMSStateMachineTests
         A.CallTo(() => fakedServiceBusClient.PublishToMessageSendCompletedAsync(A<byte[]>._)).MustHaveHappenedOnceExactly();
         A.CallTo(() => fakedThirdPartyClient.PostMessageSentEventToThirdPartyApiAsync(A<ThirdPartySmsMessage>._)).MustHaveHappenedOnceExactly();
     }
+    
+    [Test]
+    public async Task HappyPathMessageAlreadyProcessed()
+    {
+        var fakedQueueClient = A.Fake<IQueueClient>();
+        A.CallTo(() => fakedQueueClient.Deserialize(Array.Empty<byte>())).Returns(new SendSmsCommand(new Cuid2(), GetPhoneNumber(), _textMessage));
+        var fakedServiceBusClient = A.Fake<IServiceBusClient>();
+        A.CallTo(() => fakedServiceBusClient.PublishToMessageSendCompletedAsync(A<byte[]>._)).Returns(Task.FromResult(0));
+        var fakedSmsStateServiceClient = A.Fake<ISmsStateServiceClient>();
+        A.CallTo(() => fakedSmsStateServiceClient.SetStateAsync(new Cuid2(), Lib.StateMachines.SMSStateMachine.States.MessageSendSuccessful)).Returns(Task.FromResult(0));
+        A.CallTo(() => fakedSmsStateServiceClient.GetStateAsync(A<Cuid2>._)).Returns(Task.FromResult((SMSStateMachine.States?)SMSStateMachine.States.MessageSendSuccessful));
+        var fakedThirdPartyClient = A.Fake<IThirdPartyClient>();
+        var stateMachine = new SMSStateMachine(fakedQueueClient, fakedServiceBusClient, fakedSmsStateServiceClient, fakedThirdPartyClient, _logger, Array.Empty<byte>());
+        await stateMachine.RunStateMachine();
+        Assert.IsTrue(await stateMachine.HasFinished());
+    }
 
     [Test]
     public async Task FailedDeserialization()
