@@ -48,8 +48,8 @@ public class SMSStateMachine: IDisposable
     public async Task<bool> IsRunning()
     {
         var state = await SafelyGetState();
-        if (state != States.Initial && !IsFiniteState(state)) return false;
-        return true;
+        if (state != States.Initial && !IsFiniteState(state)) return true;
+        return false;
     }
 
     public async Task<bool> HasFinished()
