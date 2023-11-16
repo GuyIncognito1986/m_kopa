@@ -29,7 +29,7 @@ public class SMSStateMachine: IDisposable
     private SendSmsCommand? _deserializedCommandMessage { get; set; }
     private SemaphoreSlim _stateSemaphore = new SemaphoreSlim(1);
     private SemaphoreSlim _deserializedMessageSemaphore = new SemaphoreSlim(1);
-
+    
     public SMSStateMachine(IQueueClient queueClient, 
         IServiceBusClient serviceBusClient, 
         ISmsStateServiceClient stateServiceClient, 
@@ -48,14 +48,14 @@ public class SMSStateMachine: IDisposable
     public async Task<bool> IsRunning()
     {
         var state = await SafelyGetState();
-        if (state == States.MessageDeadLettered || state == States.Initial || state == States.MessageSendSuccessful) return false;
+        if (state != States.Initial && !IsFiniteState(state)) return false;
         return true;
     }
 
     public async Task<bool> HasFinished()
     {
         var state = await SafelyGetState();
-        if (state == States.MessageDeadLettered || state == States.MessageSendSuccessful) return true;
+        if (IsFiniteState(state)) return true;
         return false;
     }
 
@@ -87,6 +87,12 @@ public class SMSStateMachine: IDisposable
         }
     }
 
+    private bool IsFiniteState(States state)
+    {
+        var finiteStates = new[] { States.MessageSendSuccessful, States.MessageDeadLettered };
+        return finiteStates.Contains(state);
+    }
+    
     private async Task<States> SafelyGetState()
     {
         try
@@ -100,7 +106,7 @@ public class SMSStateMachine: IDisposable
         }
     }
 
-    private async Task SafelyUpdateDesrializedMessage(SendSmsCommand sendSmsCommand)
+    private async Task SafelyUpdateDeserializedMessage(SendSmsCommand sendSmsCommand)
     {
         try
         {
@@ -154,12 +160,10 @@ public class SMSStateMachine: IDisposable
                 try
                 {
                     var dMsg = _queueClient.Deserialize(_message);
-                    await SafelyUpdateDesrializedMessage(dMsg);
+                    await SafelyUpdateDeserializedMessage(dMsg);
                     await SafelyUpdateState(States.MessageDeserialized);
                     var stateExistsInStateService = await _stateServiceClient.GetStateAsync(dMsg.CorrelationId);
-                    if (stateExistsInStateService != null && 
-                        (stateExistsInStateService == States.MessageDeadLettered ||
-                        stateExistsInStateService == States.MessageSendSuccessful))
+                    if (stateExistsInStateService != null && IsFiniteState(stateExistsInStateService.Value))
                     {
                         _logger.LogInformation($"Message with correlation id {dMsg.CorrelationId} has already been processed");
                         await SafelyUpdateState(stateExistsInStateService.Value);
@@ -212,7 +216,7 @@ public class SMSStateMachine: IDisposable
                 break;
             default:
                 var state = await SafelyGetState();
-                _logger.LogWarning($"State machine is in finite or has not started yet, current state: {state}");
+                _logger.LogWarning($"State machine is in finite state or has not started yet, current state: {state}");
                 break;
         }
     }
