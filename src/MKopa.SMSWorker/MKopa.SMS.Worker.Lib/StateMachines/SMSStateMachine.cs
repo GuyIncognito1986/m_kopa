@@ -89,8 +89,7 @@ public class SMSStateMachine: IDisposable
 
     private bool IsFiniteState(States state)
     {
-        var finiteStates = new[] { States.MessageSendSuccessful, States.MessageDeadLettered };
-        return finiteStates.Contains(state);
+        return state == States.MessageSendSuccessful || state == States.MessageDeadLettered;
     }
     
     private async Task<States> SafelyGetState()
